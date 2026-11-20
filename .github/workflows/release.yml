@@ -1,1 +1,38 @@
+name: Build and release Windows client mod
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
 
+permissions:
+  contents: write
+
+jobs:
+  client:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: xmake-io/github-action-setup-xmake@v1
+      - uses: ZhongRuoyu/setup-llvm@v0
+        with:
+          llvm-version: 22
+      - name: Build Windows x64 client
+        shell: pwsh
+        run: |
+          xmake repo -u
+          xmake f -a x64 -m release -p windows --target_type=client -y
+          xmake -w -y
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: keystrokes-hud-client-windows-x64
+          path: bin/
+      - name: Package release ZIP
+        if: github.event_name == 'release'
+        shell: pwsh
+        run: Compress-Archive -Path bin/* -DestinationPath keystrokes-hud-client-windows-x64.zip
+      - name: Attach to GitHub release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: keystrokes-hud-client-windows-x64.zip
